@@ -1,0 +1,8 @@
+{
+  "name": "medresearch-ai",
+  "version": "1.0.0",
+  "description": "AI-powered medical research paper analyzer",
+  "scripts": {
+    "dev": "vercel dev"
+  }
+}

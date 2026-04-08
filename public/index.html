@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MedResearch AI — Medical Paper Analyzer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f9f9f8;
+      --surface: #ffffff;
+      --border: rgba(0,0,0,0.1);
+      --border-strong: rgba(0,0,0,0.2);
+      --text: #1a1a1a;
+      --muted: #666;
+      --hint: #999;
+      --info-bg: #e6f1fb;
+      --info-text: #0c447c;
+      --warn-bg: #faeeda;
+      --warn-text: #854f0b;
+      --success-bg: #eaf3de;
+      --success-text: #3b6d11;
+      --danger-bg: #fcebeb;
+      --danger-text: #a32d2d;
+      --accent: #1D9E75;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1a1a18;
+        --surface: #242422;
+        --border: rgba(255,255,255,0.1);
+        --border-strong: rgba(255,255,255,0.2);
+        --text: #f0f0ee;
+        --muted: #aaa;
+        --hint: #777;
+        --info-bg: #0c2a40;
+        --info-text: #85b7eb;
+        --warn-bg: #2e1f06;
+        --warn-text: #ef9f27;
+        --success-bg: #172b06;
+        --success-text: #97c459;
+        --danger-bg: #2a1010;
+        --danger-text: #f09595;
+      }
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    nav {
+      background: var(--surface);
+      border-bottom: 0.5px solid var(--border);
+      padding: 0 1.5rem;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .nav-brand { font-size: 16px; font-weight: 500; color: var(--text); }
+    .nav-brand span { color: var(--accent); }
+    .nav-links { display: flex; gap: 20px; }
+    .nav-links a { font-size: 13px; color: var(--muted); text-decoration: none; }
+    .nav-links a:hover { color: var(--text); }
+
+    main {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 2.5rem 1.5rem 4rem;
+    }
+
+    .hero { text-align: center; margin-bottom: 2.5rem; }
+    .hero h1 { font-size: 32px; font-weight: 500; color: var(--text); margin-bottom: 10px; }
+    .hero p { font-size: 16px; color: var(--muted); max-width: 520px; margin: 0 auto; }
+
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 3px 10px;
+      border-radius: 99px;
+      background: var(--success-bg);
+      color: var(--success-text);
+      margin-bottom: 16px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 180px;
+      resize: vertical;
+      font-size: 14px;
+      font-family: inherit;
+      padding: 12px;
+      border: 0.5px solid var(--border-strong);
+      border-radius: var(--radius-md);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    textarea:focus { outline: none; border-color: var(--accent); }
+
+    .input-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn-example {
+      font-size: 12px;
+      color: var(--info-text);
+      background: var(--info-bg);
+      border: none;
+      padding: 6px 12px;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+    }
+
+    .btn-analyze {
+      flex: 1;
+      min-width: 200px;
+      padding: 12px;
+      font-size: 15px;
+      font-weight: 500;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+
+    .btn-analyze:hover { opacity: 0.88; }
+    .btn-analyze:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .loading {
+      text-align: center;
+      padding: 2rem;
+      color: var(--muted);
+      font-size: 14px;
+      display: none;
+    }
+
+    .loading.visible { display: block; }
+
+    .spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .results { display: none; }
+    .results.visible { display: block; }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--hint);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 10px;
+    }
+
+    .section-body { font-size: 14px; color: var(--text); line-height: 1.7; }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+    }
+
+    .stat-cell {
+      background: var(--bg);
+      border-radius: var(--radius-md);
+      padding: 12px;
+    }
+
+    .stat-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+    .stat-value { font-size: 15px; font-weight: 500; color: var(--text); }
+
+    .score-row { display: flex; align-items: center; gap: 16px; }
+    .score-num { font-size: 28px; font-weight: 500; color: var(--text); min-width: 52px; }
+    .bar-track { flex: 1; height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 4px; background: var(--accent); transition: width 0.7s ease; }
+    .score-reason { font-size: 13px; color: var(--muted); margin-top: 8px; }
+
+    .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+    .tag {
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: var(--radius-md);
+      background: var(--warn-bg);
+      color: var(--warn-text);
+    }
+
+    .questions-list { list-style: none; }
+    .questions-list li {
+      padding: 9px 0;
+      border-bottom: 0.5px solid var(--border);
+      font-size: 14px;
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .questions-list li:last-child { border-bottom: none; }
+    .questions-list li::before { content: "→ "; color: var(--hint); }
+
+    .error-msg {
+      background: var(--danger-bg);
+      color: var(--danger-text);
+      border-radius: var(--radius-md);
+      padding: 12px;
+      font-size: 14px;
+      display: none;
+      margin-top: 1rem;
+    }
+    .error-msg.visible { display: block; }
+
+    footer {
+      text-align: center;
+      padding: 2rem;
+      font-size: 13px;
+      color: var(--hint);
+      border-top: 0.5px solid var(--border);
+      margin-top: 3rem;
+    }
+
+    footer a { color: var(--muted); text-decoration: none; }
+    footer a:hover { color: var(--text); }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">Med<span>Research</span> AI</div>
+  <div class="nav-links">
+    <a href="https://github.com/YOUR_GITHUB_USERNAME/medresearch-ai" target="_blank">GitHub</a>
+    <a href="https://linkedin.com/in/savirrajsinghmohil" target="_blank">About</a>
+  </div>
+</nav>
+
+<main>
+  <div class="hero">
+    <div class="badge">Built for VCU Health researchers</div>
+    <h1>Medical Research Analyzer</h1>
+    <p>Paste any research paper or abstract. Get an instant AI-powered breakdown — plain english summary, key stats, limitations, and next questions.</p>
+  </div>
+
+  <div class="card">
+    <label>Research paper or abstract</label>
+    <textarea id="paperInput" placeholder="Paste the full text or abstract of any medical research paper here..."></textarea>
+    <div class="input-row">
+      <button class="btn-example" onclick="loadExample()">Load example</button>
+      <button class="btn-analyze" id="analyzeBtn" onclick="analyze()">Analyze paper →</button>
+    </div>
+  </div>
+
+  <div class="loading" id="loading">
+    <span class="spinner"></span> Analyzing with AI — usually takes about 10 seconds...
+  </div>
+
+  <div class="error-msg" id="errorMsg"></div>
+
+  <div class="results" id="results">
+    <div class="card">
+      <div class="section-title">Plain english summary</div>
+      <div class="section-body" id="summary"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Key statistics</div>
+      <div class="stats-grid" id="statsGrid"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Clinical relevance score</div>
+      <div class="score-row">
+        <div class="score-num" id="scoreNum">—</div>
+        <div style="flex:1">
+          <div class="bar-track"><div class="bar-fill" id="barFill" style="width:0%"></div></div>
+        </div>
+      </div>
+      <div class="score-reason" id="scoreReason"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Study limitations</div>
+      <div class="tags" id="limitationsTags"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Questions a researcher would ask next</div>
+      <ul class="questions-list" id="questionsList"></ul>
+    </div>
+  </div>
+</main>
+
+<footer>
+  Built by <a href="https://linkedin.com/in/savirrajsinghmohil" target="_blank">Savir Mohil</a> · VCU Computer Science · <a href="https://github.com/YOUR_GITHUB_USERNAME/medresearch-ai" target="_blank">View on GitHub</a>
+</footer>
+
+<script>
+const EXAMPLE = `Background: Statins are widely used to reduce cardiovascular risk, but their effect on all-cause mortality in patients over 75 without prior cardiovascular disease remains uncertain.
+
+Methods: We conducted a randomized, double-blind, placebo-controlled trial enrolling 3,796 participants aged 75 years and older with no prior cardiovascular events. Participants were randomly assigned to receive pravastatin 40mg daily or placebo. The primary endpoint was a composite of non-fatal myocardial infarction, non-fatal stroke, or coronary heart disease death. Secondary endpoints included all-cause mortality. Follow-up was 5 years.
+
+Results: The primary endpoint occurred in 16.3% of the pravastatin group vs 17.1% of the placebo group (HR 0.94, 95% CI 0.78–1.13, p=0.48). All-cause mortality was 21.4% vs 23.6% respectively (HR 0.90, 95% CI 0.77–1.05, p=0.18). No significant difference was observed in the rate of adverse events including myopathy (1.2% vs 0.9%, p=0.41).
+
+Conclusion: Pravastatin did not significantly reduce the primary cardiovascular endpoint or all-cause mortality in adults aged 75 and older without established cardiovascular disease. These findings suggest that primary prevention with statins may have limited benefit in this age group.`;
+
+function loadExample() {
+  document.getElementById('paperInput').value = EXAMPLE;
+}
+
+async function analyze() {
+  const text = document.getElementById('paperInput').value.trim();
+  if (!text) return;
+
+  document.getElementById('analyzeBtn').disabled = true;
+  document.getElementById('loading').classList.add('visible');
+  document.getElementById('results').classList.remove('visible');
+  document.getElementById('errorMsg').classList.remove('visible');
+
+  try {
+    const res = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
+    });
+
+    if (!res.ok) throw new Error('Server error');
+    const d = await res.json();
+    renderResults(d);
+  } catch(e) {
+    const el = document.getElementById('errorMsg');
+    el.textContent = 'Analysis failed. Please try again in a moment.';
+    el.classList.add('visible');
+  } finally {
+    document.getElementById('analyzeBtn').disabled = false;
+    document.getElementById('loading').classList.remove('visible');
+  }
+}
+
+function renderResults(d) {
+  document.getElementById('summary').textContent = d.summary || '';
+
+  document.getElementById('statsGrid').innerHTML = (d.stats || []).map(s => `
+    <div class="stat-cell">
+      <div class="stat-label">${s.label}</div>
+      <div class="stat-value">${s.value}</div>
+    </div>`).join('');
+
+  const score = d.relevanceScore || 0;
+  document.getElementById('scoreNum').textContent = score + '/10';
+  document.getElementById('barFill').style.width = (score * 10) + '%';
+  document.getElementById('scoreReason').textContent = d.relevanceReason || '';
+
+  document.getElementById('limitationsTags').innerHTML =
+    (d.limitations || []).map(l => `<span class="tag">${l}</span>`).join('');
+
+  document.getElementById('questionsList').innerHTML =
+    (d.nextQuestions || []).map(q => `<li>${q}</li>`).join('');
+
+  document.getElementById('results').classList.add('visible');
+  document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+</script>
+</body>
+</html>
