@@ -6,6 +6,9 @@ export default async function handler(req, res) {
   const { text } = req.body;
   if (!text) return res.status(400).json({ error: 'No text provided' });
 
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return res.status(500).json({ error: 'API key not configured' });
+
   const prompt = `You are a medical research analyst. Analyze this research paper and respond ONLY with a valid JSON object, no markdown, no backticks, no preamble.
 
 JSON structure:
@@ -17,7 +20,7 @@ JSON structure:
     {"label": "Follow-up", "value": "..."},
     {"label": "Primary outcome", "value": "..."}
   ],
-  "relevanceScore": <integer 1-10>,
+  "relevanceScore": 7,
   "relevanceReason": "one sentence explanation of the score",
   "limitations": ["limitation 1", "limitation 2", "limitation 3"],
   "nextQuestions": ["question 1", "question 2", "question 3", "question 4"]
@@ -31,7 +34,7 @@ ${text}`;
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'x-api-key': apiKey,
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
@@ -42,11 +45,17 @@ ${text}`;
     });
 
     const data = await response.json();
+
+    if (!response.ok) {
+      return res.status(500).json({ error: data.error?.message || 'Anthropic API error' });
+    }
+
     const raw = data.content.map(b => b.text || '').join('');
     const clean = raw.replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(clean);
     res.status(200).json(parsed);
   } catch (err) {
-    res.status(500).json({ error: 'Analysis failed. Please try again.' });
+    res.status(500).json({ error: err.message });
   }
 }
+
